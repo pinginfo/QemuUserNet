@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"QemuUserNet/entities"
+	"QemuUserNet/modules"
 	"QemuUserNet/network"
 	"errors"
 	"fmt"
@@ -33,11 +34,17 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 		r := []string{"This name is already in use"}
 		return []byte(strings.Join(r, "\n")), nil
 	}
+	dhcp, err := modules.NewDhcp(cmd.Subnet, cmd.GatewayIP, cmd.GatewayMAC, cmd.RangeIP)
+	if err != nil {
+		return []byte(err.Error()), nil
+	}
+
 	s.networks = append(
 		s.networks,
 		&network.Network{
-			Name: cmd.NetworkName,
-			MTU:  1500 + 14})
+			Name:    cmd.NetworkName,
+			MTU:     1500 + 14,
+			Modules: []modules.Module{dhcp}})
 	r := []string{cmd.NetworkName}
 	return []byte(strings.Join(r, "\n")), nil
 }

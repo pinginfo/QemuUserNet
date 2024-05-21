@@ -11,9 +11,12 @@ import (
 
 func main() {
 	var (
-		ip     string
-		port   int
-		subnet string
+		ip         string
+		port       int
+		subnet     string
+		gatewayIP  string
+		gatewayMAC string
+		rangeIP    string
 	)
 
 	daemonCmd := flag.NewFlagSet("daemon", flag.ExitOnError)
@@ -26,6 +29,9 @@ func main() {
 	rmCmd := flag.NewFlagSet("rm", flag.ExitOnError)
 
 	createCmd.StringVar(&subnet, "subnet", "10.10.10.0/24", "Subnet in CIDR format that represents a network segment")
+	createCmd.StringVar(&gatewayIP, "gateway", "10.10.10.1", "The IP address of the gateway for the network segment")
+	createCmd.StringVar(&gatewayMAC, "gatewaymac", "52:54:00:12:34:ff", "The MAC (Media Access Control) address of the gateway device")
+	createCmd.StringVar(&rangeIP, "rangeip", "10.10.10.100-200", "A range of IP addresses within the subnet that can be assigned to devices. The range is specified with a start and end IP address, indicating the pool of IP addresses available for DHCP assignment")
 
 	flag.StringVar(&ip, "h", "0.0.0.0", "Set hostname")
 	flag.IntVar(&port, "p", 9000, "Set port")
@@ -116,7 +122,7 @@ func main() {
 			createCmd.Usage()
 			os.Exit(0)
 		}
-		err := client.Create(ip, port, createCmd.Arg(0), subnet)
+		err := client.Create(ip, port, createCmd.Arg(0), subnet, gatewayIP, gatewayMAC, rangeIP)
 		if err != nil {
 			log.Println("error: ", err.Error())
 			os.Exit(1)

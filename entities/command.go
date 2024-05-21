@@ -17,6 +17,10 @@ type CommandWrapper struct {
 
 type CreateCommand struct {
 	NetworkName string
+	Subnet      string
+	GatewayIP   string
+	GatewayMAC  string
+	RangeIP     string
 }
 
 type ConnectCommand struct {

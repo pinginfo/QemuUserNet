@@ -2,12 +2,16 @@ package network
 
 import (
 	"QemuUserNet/entities"
+	"QemuUserNet/modules"
 	"QemuUserNet/tools"
 	"errors"
 	"fmt"
 	"log"
 	"net"
 	"os"
+
+	"github.com/google/gopacket"
+	"github.com/google/gopacket/layers"
 )
 
 type Thread struct {
@@ -24,6 +28,7 @@ type Network struct {
 	Name     string
 	MTU      int
 	Handlers []*Thread
+	Modules  []modules.Module
 }
 
 func (n *Network) send(sockPath string, data []byte) error {
@@ -64,11 +69,27 @@ func (n *Network) listen(thread *Thread) error {
 			if err != nil {
 				log.Println("WARNING: error during reading: ", err.Error())
 			}
-			for _, x := range n.Handlers {
-				if x.VM == thread.VM {
+			packet := gopacket.NewPacket(data, layers.LayerTypeEthernet, gopacket.Default)
+
+			var receiver modules.Receiver
+			var request []byte
+			for _, module := range n.Modules {
+				request, receiver, err = module.Listen(packet)
+				if err != nil {
 					continue
 				}
-				n.send(x.VM.LocalSocket, data)
+				break
+			}
+
+			if receiver == modules.Himself {
+				n.send(thread.VM.LocalSocket, request)
+			} else {
+				for _, x := range n.Handlers {
+					if receiver != modules.All && x.VM == thread.VM {
+						continue
+					}
+					n.send(x.VM.LocalSocket, request)
+				}
 			}
 		}
 	}
