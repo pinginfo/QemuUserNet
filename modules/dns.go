@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"QemuUserNet/entities"
 	"errors"
 	"fmt"
 	"net"
@@ -10,12 +11,13 @@ import (
 )
 
 type Dns struct {
-	ip   net.IP
-	mac  net.HardwareAddr
-	dict map[string]net.IP
+	ip      net.IP
+	mac     net.HardwareAddr
+	dict    map[string]net.IP
+	clients *entities.Clients
 }
 
-func NewDns(ip string, mac string) (*Dns, error) {
+func NewDns(ip string, mac string, clients *entities.Clients) (*Dns, error) {
 	nip := net.ParseIP(ip)
 	if nip == nil {
 		return nil, errors.New("Invalid IP")
@@ -24,7 +26,7 @@ func NewDns(ip string, mac string) (*Dns, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &Dns{nip, nmac, make(map[string]net.IP)}, nil
+	return &Dns{nip, nmac, make(map[string]net.IP), clients}, nil
 }
 
 func (d *Dns) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
@@ -165,26 +167,38 @@ func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, err
 }
 
 func (d *Dns) buildDNSAnswer(question layers.DNSQuestion) *layers.DNSResourceRecord {
-	name := string(question.Name)
-	if val, ok := d.dict[name]; ok {
-		answer := &layers.DNSResourceRecord{
-			Name:  question.Name,
-			Type:  question.Type,
-			Class: question.Class,
-			TTL:   300,
-		}
+	client, err := d.clients.GetClientByID(string(question.Name))
 
-		switch question.Type {
-		case layers.DNSTypeA:
-			answer.IP = val
-		case layers.DNSTypeAAAA:
-			// TODO Send a dummy ipv6, otherwise the client system will wait for it and slow the system down.
-			answer.IP = net.IP{0x20, 0x01, 0x0d, 0xb8, 0x85, 0xa3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
-		default:
-			return nil
-		}
-
-		return answer
+	if err != nil {
+		return nil
 	}
-	return nil
+
+	if client.VM.Ip == nil {
+		return nil
+	}
+
+	ip := net.ParseIP(*client.VM.Ip)
+
+	if ip == nil {
+		return nil
+	}
+
+	answer := &layers.DNSResourceRecord{
+		Name:  question.Name,
+		Type:  question.Type,
+		Class: question.Class,
+		TTL:   300,
+	}
+
+	switch question.Type {
+	case layers.DNSTypeA:
+		answer.IP = ip
+	case layers.DNSTypeAAAA:
+		// TODO Send a dummy ipv6, otherwise the client system will wait for it and slow the system down.
+		answer.IP = net.IP{0x20, 0x01, 0x0d, 0xb8, 0x85, 0xa3, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x01}
+	default:
+		return nil
+	}
+
+	return answer
 }

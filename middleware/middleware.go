@@ -35,11 +35,14 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 		r := []string{"This name is already in use"}
 		return []byte(strings.Join(r, "\n")), nil
 	}
-	dhcp, err := modules.NewDhcp(cmd.Subnet, cmd.GatewayIP, cmd.GatewayMAC, cmd.RangeIP, cmd.DnsIP)
+
+	clients := &entities.Clients{}
+
+	dhcp, err := modules.NewDhcp(cmd.Subnet, cmd.GatewayIP, cmd.GatewayMAC, cmd.RangeIP, cmd.DnsIP, clients)
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	dns, err := modules.NewDns(cmd.DnsIP, cmd.DnsMAC)
+	dns, err := modules.NewDns(cmd.DnsIP, cmd.DnsMAC, clients)
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
@@ -49,7 +52,9 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 		&network.Network{
 			Name:    cmd.NetworkName,
 			MTU:     1500 + 14,
-			Modules: []modules.Module{dhcp, dns}})
+			Modules: []modules.Module{dhcp, dns},
+			Clients: clients,
+		})
 	r := []string{cmd.NetworkName}
 	return []byte(strings.Join(r, "\n")), nil
 }

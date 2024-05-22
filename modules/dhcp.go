@@ -1,6 +1,7 @@
 package modules
 
 import (
+	"QemuUserNet/entities"
 	"errors"
 	"fmt"
 	"net"
@@ -19,9 +20,10 @@ type Dhcp struct {
 	dnsIP      net.IP
 	freeIP     []net.IP
 	usedIP     []net.IP
+	clients    *entities.Clients
 }
 
-func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dnsIp string) (*Dhcp, error) {
+func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dnsIp string, clients *entities.Clients) (*Dhcp, error) {
 	_, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return nil, err
@@ -54,6 +56,7 @@ func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dns
 		dnsIP:      dnsIP,
 		freeIP:     freeIP,
 		usedIP:     []net.IP{},
+		clients:    clients,
 	}, nil
 }
 
@@ -139,7 +142,7 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 			case layers.DHCPMsgTypeRequest:
 				messagetype = layers.DHCPMsgTypeAck
 			default:
-				return packet.Data(), All, errors.New("DHCPOptMessageType is not supported")
+				return packet.Data(), Nobody, errors.New("DHCPOptMessageType is not supported")
 			}
 		}
 	}
@@ -219,8 +222,16 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 	err = gopacket.SerializeLayers(buf, opts, responseEther, responseIP, responseUDP, responseDHCP)
 
 	if err != nil {
-		return packet.Data(), All, errors.New("Packet serialization error")
+		return packet.Data(), Nobody, errors.New("Packet serialization error")
 	}
+
+	client, err := d.clients.GetClientByMac(dhcp.ClientHWAddr.String())
+	if err != nil {
+		return packet.Data(), Nobody, errors.New("Client not found")
+	}
+
+	ip := clientIP.String()
+	client.VM.Ip = &ip
 
 	return buf.Bytes(), Himself, nil
 }

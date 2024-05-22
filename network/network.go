@@ -14,21 +14,11 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-type Thread struct {
-	VM     entities.VM
-	Active bool
-	Done   chan struct{}
-}
-
-func (t *Thread) Stop() {
-	close(t.Done)
-}
-
 type Network struct {
-	Name     string
-	MTU      int
-	Handlers []*Thread
-	Modules  []modules.Module
+	Name    string
+	MTU     int
+	Clients *entities.Clients
+	Modules []modules.Module
 }
 
 func (n *Network) send(sockPath string, data []byte) error {
@@ -43,7 +33,7 @@ func (n *Network) send(sockPath string, data []byte) error {
 	return nil
 }
 
-func (n *Network) listen(thread *Thread) error {
+func (n *Network) listen(thread *entities.Thread) error {
 	log.Println("INFO: Thread started : " + thread.VM.ID)
 	if _, err := os.Stat(thread.VM.RemoteSocket); err == nil {
 		os.Remove(thread.VM.RemoteSocket)
@@ -87,7 +77,7 @@ func (n *Network) listen(thread *Thread) error {
 			if receiver == modules.Himself {
 				n.send(thread.VM.LocalSocket, request)
 			} else {
-				for _, x := range n.Handlers {
+				for _, x := range n.Clients.Threads {
 					if receiver != modules.All && x.VM == thread.VM {
 						continue
 					}
@@ -99,33 +89,11 @@ func (n *Network) listen(thread *Thread) error {
 }
 
 func (n *Network) GetVMs() ([]entities.VM, error) {
-	var vm = []entities.VM{}
-	for _, handler := range n.Handlers {
-		vm = append(vm, handler.VM)
-	}
-	return vm, nil
-}
-
-func (n *Network) GetVMByID(id string) (*Thread, error) {
-	for _, handler := range n.Handlers {
-		if handler.VM.ID == id {
-			return handler, nil
-		}
-	}
-	return nil, errors.New("VM not found")
-}
-
-func (n *Network) GetVMByMac(mac string) (*Thread, error) {
-	for _, handler := range n.Handlers {
-		if handler.VM.Mac == mac {
-			return handler, nil
-		}
-	}
-	return nil, errors.New("VM not found")
+	return n.Clients.GetVMs()
 }
 
 func (n *Network) AddVM(id string) (*entities.VM, error) {
-	if _, err := n.GetVMByID(id); err == nil {
+	if _, err := n.Clients.GetClientByID(id); err == nil {
 		return nil, errors.New("This ID is already used")
 	}
 
@@ -143,8 +111,8 @@ func (n *Network) AddVM(id string) (*entities.VM, error) {
 	}
 
 	vm := entities.VM{ID: id, Mac: mac, Socket: uuid, LocalSocket: localSock, RemoteSocket: remoteSock, Ip: nil}
-	thread := &Thread{VM: vm, Active: false, Done: make(chan struct{})}
-	n.Handlers = append(n.Handlers, thread)
+	thread := &entities.Thread{VM: vm, Active: false, Done: make(chan struct{})}
+	n.Clients.Threads = append(n.Clients.Threads, thread)
 
 	go n.listen(thread)
 
@@ -152,7 +120,7 @@ func (n *Network) AddVM(id string) (*entities.VM, error) {
 }
 
 func (n *Network) Start(id string) error {
-	handler, err := n.GetVMByID(id)
+	handler, err := n.Clients.GetClientByID(id)
 	if err != nil {
 		return err
 	}
@@ -161,7 +129,7 @@ func (n *Network) Start(id string) error {
 }
 
 func (n *Network) Stop(id string) error {
-	handler, err := n.GetVMByID(id)
+	handler, err := n.Clients.GetClientByID(id)
 	if err != nil {
 		return err
 	}
@@ -171,14 +139,14 @@ func (n *Network) Stop(id string) error {
 
 func (n *Network) StartAllThreads() error {
 	fmt.Println("StartAllThreads")
-	for _, handler := range n.Handlers {
+	for _, handler := range n.Clients.Threads {
 		go n.listen(handler)
 	}
 	return nil
 }
 
 func (n *Network) stopAllThreads() error {
-	for _, handler := range n.Handlers {
+	for _, handler := range n.Clients.Threads {
 		handler.Stop()
 	}
 	return nil
@@ -200,7 +168,7 @@ func (n *Network) getNewMac() (string, error) {
 			return "", err
 		}
 
-		if _, err = n.GetVMByMac(mac); err != nil {
+		if _, err = n.Clients.GetClientByMac(mac); err != nil {
 			break
 		}
 	}
