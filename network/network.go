@@ -81,6 +81,9 @@ func (n *Network) listen(thread *Thread) error {
 				break
 			}
 
+			if receiver == modules.Nobody {
+				continue
+			}
 			if receiver == modules.Himself {
 				n.send(thread.VM.LocalSocket, request)
 			} else {

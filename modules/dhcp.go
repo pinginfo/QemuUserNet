@@ -16,11 +16,12 @@ type Dhcp struct {
 	gatewayMAC net.HardwareAddr
 	subnetIP   net.IP
 	subnetMask net.IPMask
+	dnsIP      net.IP
 	freeIP     []net.IP
 	usedIP     []net.IP
 }
 
-func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string) (*Dhcp, error) {
+func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dnsIp string) (*Dhcp, error) {
 	_, ipnet, err := net.ParseCIDR(subnet)
 	if err != nil {
 		return nil, err
@@ -28,7 +29,7 @@ func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string) (*D
 
 	gatewayIP := net.ParseIP(gateway)
 	if gatewayIP == nil {
-		return nil, err
+		return nil, errors.New("Invalid gateway IP")
 	}
 	gatewayMAC, err := net.ParseMAC(gatewayM)
 	if err != nil {
@@ -40,11 +41,17 @@ func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string) (*D
 		return nil, err
 	}
 
+	dnsIP := net.ParseIP(dnsIp)
+	if dnsIP == nil {
+		return nil, errors.New("Invalid dns IP")
+	}
+
 	return &Dhcp{
 		gatewayIP:  gatewayIP,
 		gatewayMAC: gatewayMAC,
 		subnetIP:   ipnet.IP,
 		subnetMask: ipnet.Mask,
+		dnsIP:      dnsIP,
 		freeIP:     freeIP,
 		usedIP:     []net.IP{},
 	}, nil
@@ -94,7 +101,6 @@ func generateIPRange(rangeStr string) ([]net.IP, error) {
 
 func (d *Dhcp) getAnIp() (*net.IP, error) {
 	var value net.IP
-
 	if len(d.freeIP) > 0 {
 		value, d.freeIP = d.freeIP[0], d.freeIP[1:]
 		d.usedIP = append(d.usedIP, value)
@@ -197,7 +203,7 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 		},
 		{
 			Type:   layers.DHCPOptDNS,
-			Data:   d.gatewayIP.To4(),
+			Data:   d.dnsIP.To4(),
 			Length: 4,
 		},
 		{
@@ -213,7 +219,7 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 	err = gopacket.SerializeLayers(buf, opts, responseEther, responseIP, responseUDP, responseDHCP)
 
 	if err != nil {
-		return packet.Data(), All, errors.New("Packet serialisation error")
+		return packet.Data(), All, errors.New("Packet serialization error")
 	}
 
 	return buf.Bytes(), Himself, nil

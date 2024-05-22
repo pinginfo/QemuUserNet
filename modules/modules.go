@@ -9,6 +9,7 @@ const (
 	Himself
 	Others
 	All
+	Nobody
 )
 
 type Module interface {

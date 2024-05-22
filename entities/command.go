@@ -21,6 +21,8 @@ type CreateCommand struct {
 	GatewayIP   string
 	GatewayMAC  string
 	RangeIP     string
+	DnsIP       string
+	DnsMAC      string
 }
 
 type ConnectCommand struct {
