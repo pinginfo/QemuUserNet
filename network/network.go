@@ -44,7 +44,7 @@ func (n *Network) send(sockPath string, data []byte) error {
 }
 
 func (n *Network) listen(thread *Thread) error {
-	log.Println("INFO: Thread started : " + thread.VM.Socket)
+	log.Println("INFO: Thread started : " + thread.VM.ID)
 	if _, err := os.Stat(thread.VM.RemoteSocket); err == nil {
 		os.Remove(thread.VM.RemoteSocket)
 	}
@@ -106,7 +106,16 @@ func (n *Network) GetVMs() ([]entities.VM, error) {
 	return vm, nil
 }
 
-func (n *Network) GetVM(mac string) (*Thread, error) {
+func (n *Network) GetVMByID(id string) (*Thread, error) {
+	for _, handler := range n.Handlers {
+		if handler.VM.ID == id {
+			return handler, nil
+		}
+	}
+	return nil, errors.New("VM not found")
+}
+
+func (n *Network) GetVMByMac(mac string) (*Thread, error) {
 	for _, handler := range n.Handlers {
 		if handler.VM.Mac == mac {
 			return handler, nil
@@ -115,7 +124,11 @@ func (n *Network) GetVM(mac string) (*Thread, error) {
 	return nil, errors.New("VM not found")
 }
 
-func (n *Network) AddVM(mac string) (*entities.VM, error) {
+func (n *Network) AddVM(id string) (*entities.VM, error) {
+	if _, err := n.GetVMByID(id); err == nil {
+		return nil, errors.New("This ID is already used")
+	}
+
 	uuid, err := tools.GenerateUUID()
 	if err != nil {
 		log.Println("WARNING: error during uuid generation: ", err.Error())
@@ -123,7 +136,13 @@ func (n *Network) AddVM(mac string) (*entities.VM, error) {
 	var localSock = "/tmp/QemuUserNet_" + uuid + ".local"
 	var remoteSock = "/tmp/QemuUserNet_" + uuid + ".remote"
 
-	vm := entities.VM{Mac: mac, Socket: uuid, LocalSocket: localSock, RemoteSocket: remoteSock, Ip: nil}
+	mac, err := n.getNewMac()
+
+	if err != nil {
+		log.Println("WARNING: error during mac generation: ", err.Error())
+	}
+
+	vm := entities.VM{ID: id, Mac: mac, Socket: uuid, LocalSocket: localSock, RemoteSocket: remoteSock, Ip: nil}
 	thread := &Thread{VM: vm, Active: false, Done: make(chan struct{})}
 	n.Handlers = append(n.Handlers, thread)
 
@@ -132,8 +151,8 @@ func (n *Network) AddVM(mac string) (*entities.VM, error) {
 	return &vm, nil
 }
 
-func (n *Network) Start(mac string) error {
-	handler, err := n.GetVM(mac)
+func (n *Network) Start(id string) error {
+	handler, err := n.GetVMByID(id)
 	if err != nil {
 		return err
 	}
@@ -141,8 +160,8 @@ func (n *Network) Start(mac string) error {
 	return nil
 }
 
-func (n *Network) Stop(mac string) error {
-	handler, err := n.GetVM(mac)
+func (n *Network) Stop(id string) error {
+	handler, err := n.GetVMByID(id)
 	if err != nil {
 		return err
 	}
@@ -167,4 +186,23 @@ func (n *Network) stopAllThreads() error {
 
 func (n *Network) RemoveVM(mac string) error {
 	return errors.New("Not Implemented")
+}
+
+func (n *Network) getNewMac() (string, error) {
+	var (
+		mac string
+		err error
+	)
+	for {
+		mac, err = tools.GenerateMACAddress()
+
+		if err != nil {
+			return "", err
+		}
+
+		if _, err = n.GetVMByMac(mac); err != nil {
+			break
+		}
+	}
+	return mac, nil
 }

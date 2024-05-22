@@ -27,12 +27,12 @@ type CreateCommand struct {
 
 type ConnectCommand struct {
 	NetworkName string
-	MacAddress  string
+	VmID        string
 }
 
 type DisconnectCommand struct {
 	NetworkName string
-	MacAddress  string
+	VmID        string
 }
 
 type InspectCommand struct {

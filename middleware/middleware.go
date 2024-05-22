@@ -4,6 +4,7 @@ import (
 	"QemuUserNet/entities"
 	"QemuUserNet/modules"
 	"QemuUserNet/network"
+	"QemuUserNet/tools"
 	"errors"
 	"fmt"
 	"strings"
@@ -58,15 +59,11 @@ func (s *Middleware) Connect(cmd entities.ConnectCommand) ([]byte, error) {
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	_, err = net.GetVM(cmd.MacAddress)
-	if err == nil {
-		return []byte("This mac address is already in use"), nil
-	}
-	vm, err := net.AddVM(cmd.MacAddress)
+	vm, err := net.AddVM(cmd.VmID)
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	return []byte("-netdev dgram,id=" + vm.Socket + ",remote.type=unix,remote.path=" + vm.RemoteSocket + ",local.type=unix,local.path=" + vm.LocalSocket + " -device virtio-net,netdev=" + vm.Socket + ",mac=" + vm.Mac), nil
+	return tools.CraftQemuNetworkCommand(vm.Socket, vm.RemoteSocket, vm.LocalSocket, vm.Mac), nil
 }
 
 func (s *Middleware) Disconnect(cmd entities.DisconnectCommand) ([]byte, error) {
@@ -74,12 +71,12 @@ func (s *Middleware) Disconnect(cmd entities.DisconnectCommand) ([]byte, error) 
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	net.RemoveVM(cmd.MacAddress)
-	return []byte(cmd.MacAddress), nil
+	net.RemoveVM(cmd.VmID)
+	return []byte(cmd.VmID), nil
 }
 
 func (s *Middleware) Inspect(cmd entities.InspectCommand) ([]byte, error) {
-	r := []string{"Mac Addres		Ip		Socket"}
+	r := []string{"ID	Mac Address		Ip		Socket"}
 	for _, network := range s.networks {
 		for _, selectedNetwork := range cmd.NetworkNames {
 			if network.Name == selectedNetwork {
@@ -87,9 +84,9 @@ func (s *Middleware) Inspect(cmd entities.InspectCommand) ([]byte, error) {
 				vms, _ := network.GetVMs()
 				for _, vm := range vms {
 					if vm.Ip == nil {
-						r = append(r, vm.Mac+"	"+"None	"+"	"+vm.Socket)
+						r = append(r, vm.ID+"	"+vm.Mac+"	"+"None	"+"	"+vm.Socket)
 					} else {
-						r = append(r, vm.Mac+"	"+*vm.Ip+"	"+vm.Socket)
+						r = append(r, vm.ID+"	"+vm.Mac+"	"+*vm.Ip+"	"+vm.Socket)
 					}
 				}
 			}

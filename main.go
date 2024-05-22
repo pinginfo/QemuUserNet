@@ -70,14 +70,14 @@ func main() {
 	}
 
 	connectCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s connect [options] NETWORK MAC\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s connect [options] NETWORK ID\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 		connectCmd.PrintDefaults()
 	}
 
 	disconnectCmd.Usage = func() {
-		fmt.Fprintf(os.Stderr, "Usage: %s disconnect [options] NETWORK MAC\n", os.Args[0])
+		fmt.Fprintf(os.Stderr, "Usage: %s disconnect [options] NETWORK ID\n", os.Args[0])
 		fmt.Fprintf(os.Stderr, "\nOptions:\n")
 		flag.PrintDefaults()
 		disconnectCmd.PrintDefaults()

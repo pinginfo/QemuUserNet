@@ -48,8 +48,8 @@ func Create(ip string, port int, nameNetwork string, subnet string, gatewayIP st
 	return listen(conn)
 }
 
-func Connect(ip string, port int, nameNetwork string, macAddress string) error {
-	cmd := entities.ConnectCommand{nameNetwork, macAddress}
+func Connect(ip string, port int, nameNetwork string, vmId string) error {
+	cmd := entities.ConnectCommand{nameNetwork, vmId}
 	wrapper := entities.CommandWrapper{"connect", cmd}
 
 	data, err := json.Marshal(wrapper)
@@ -64,8 +64,8 @@ func Connect(ip string, port int, nameNetwork string, macAddress string) error {
 	return listen(conn)
 }
 
-func Disconnect(ip string, port int, nameNetwork string, macAddress string) error {
-	cmd := entities.DisconnectCommand{nameNetwork, macAddress}
+func Disconnect(ip string, port int, nameNetwork string, vmId string) error {
+	cmd := entities.DisconnectCommand{nameNetwork, vmId}
 	wrapper := entities.CommandWrapper{"disconnect", cmd}
 
 	data, err := json.Marshal(wrapper)
