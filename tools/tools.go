@@ -2,8 +2,11 @@ package tools
 
 import (
 	"crypto/rand"
+	"errors"
 	"fmt"
 	"net"
+	"strconv"
+	"strings"
 )
 
 func GenerateMACAddress() (string, error) {
@@ -70,4 +73,46 @@ func IsUsableIP(ipStr string) bool {
 	}
 
 	return true
+}
+
+func GenerateIPRange(rangeStr string) ([]net.IP, error) {
+	parts := strings.Split(rangeStr, "-")
+	if len(parts) != 2 {
+		return nil, errors.New("Invalid format")
+	}
+
+	startIP := parts[0]
+	endSuffix := parts[1]
+
+	start := net.ParseIP(startIP)
+	if start == nil {
+		return nil, errors.New("Invalid format")
+	}
+
+	startParts := strings.Split(startIP, ".")
+	if len(startParts) != 4 {
+		return nil, errors.New("Invalid format")
+	}
+
+	baseIP := strings.Join(startParts[:3], ".") + "."
+	startNum, err := strconv.Atoi(startParts[3])
+	if err != nil {
+		return nil, errors.New("Invalid format")
+	}
+
+	endNum, err := strconv.Atoi(endSuffix)
+	if err != nil {
+		return nil, errors.New("Invalid format")
+	}
+
+	if startNum > endNum {
+		return nil, fmt.Errorf("start IP address must be less than or equal to end IP address")
+	}
+
+	var ips []net.IP
+	for i := startNum; i <= endNum; i++ {
+		ips = append(ips, net.ParseIP(fmt.Sprintf("%s%d", baseIP, i)))
+	}
+
+	return ips, nil
 }

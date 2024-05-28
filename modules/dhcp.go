@@ -2,11 +2,9 @@ package modules
 
 import (
 	"QemuUserNet/entities"
+	"QemuUserNet/tools"
 	"errors"
-	"fmt"
 	"net"
-	"strconv"
-	"strings"
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
@@ -38,7 +36,7 @@ func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dns
 		return nil, err
 	}
 
-	freeIP, err := generateIPRange(rangeIp)
+	freeIP, err := tools.GenerateIPRange(rangeIp)
 	if err != nil {
 		return nil, err
 	}
@@ -58,48 +56,6 @@ func NewDhcp(subnet string, gateway string, gatewayM string, rangeIp string, dns
 		usedIP:     []net.IP{},
 		clients:    clients,
 	}, nil
-}
-
-func generateIPRange(rangeStr string) ([]net.IP, error) {
-	parts := strings.Split(rangeStr, "-")
-	if len(parts) != 2 {
-		return nil, errors.New("Invalid format")
-	}
-
-	startIP := parts[0]
-	endSuffix := parts[1]
-
-	start := net.ParseIP(startIP)
-	if start == nil {
-		return nil, errors.New("Invalid format")
-	}
-
-	startParts := strings.Split(startIP, ".")
-	if len(startParts) != 4 {
-		return nil, errors.New("Invalid format")
-	}
-
-	baseIP := strings.Join(startParts[:3], ".") + "."
-	startNum, err := strconv.Atoi(startParts[3])
-	if err != nil {
-		return nil, errors.New("Invalid format")
-	}
-
-	endNum, err := strconv.Atoi(endSuffix)
-	if err != nil {
-		return nil, errors.New("Invalid format")
-	}
-
-	if startNum > endNum {
-		return nil, fmt.Errorf("start IP address must be less than or equal to end IP address")
-	}
-
-	var ips []net.IP
-	for i := startNum; i <= endNum; i++ {
-		ips = append(ips, net.ParseIP(fmt.Sprintf("%s%d", baseIP, i)))
-	}
-
-	return ips, nil
 }
 
 func (d *Dhcp) getAnIp() (*net.IP, error) {
