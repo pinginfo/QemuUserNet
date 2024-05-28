@@ -12,6 +12,7 @@ import (
 
 	"github.com/google/gopacket"
 	"github.com/google/gopacket/layers"
+	"github.com/google/uuid"
 )
 
 type Network struct {
@@ -97,10 +98,7 @@ func (n *Network) AddVM(id string) (*entities.VM, error) {
 		return nil, errors.New("This ID is already used")
 	}
 
-	uuid, err := tools.GenerateUUID()
-	if err != nil {
-		log.Println("WARNING: error during uuid generation: ", err.Error())
-	}
+	uuid := uuid.New().String()
 	var localSock = "/tmp/QemuUserNet_" + uuid + ".local"
 	var remoteSock = "/tmp/QemuUserNet_" + uuid + ".remote"
 
