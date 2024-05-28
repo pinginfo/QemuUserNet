@@ -89,7 +89,7 @@ func (s *Middleware) Inspect(cmd entities.InspectCommand) ([]byte, error) {
 	for _, network := range s.networks {
 		for _, selectedNetwork := range cmd.NetworkNames {
 			if network.Name == selectedNetwork {
-				r = append(r, "---------------------------------------------------------------------------------------------")
+				r = append(r, "-"+selectedNetwork+"-------------------------------------------------------------------------------------------")
 				vms, _ := network.GetVMs()
 				for _, vm := range vms {
 					if vm.Ip == nil {

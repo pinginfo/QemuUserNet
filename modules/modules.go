@@ -1,6 +1,10 @@
 package modules
 
-import "github.com/google/gopacket"
+import (
+	"QemuUserNet/entities"
+
+	"github.com/google/gopacket"
+)
 
 type Receiver int64
 
@@ -14,4 +18,5 @@ const (
 
 type Module interface {
 	Listen(gopacket.Packet) ([]byte, Receiver, error)
+	Quit(client *entities.Thread) error
 }

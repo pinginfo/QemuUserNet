@@ -42,3 +42,7 @@ func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 
 	return packet.Data(), All, errors.New("Job done")
 }
+
+func (a *Arp) Quit(client *entities.Thread) error {
+	return nil
+}

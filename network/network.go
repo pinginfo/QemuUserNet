@@ -132,6 +132,9 @@ func (n *Network) Stop(id string) error {
 		return err
 	}
 	handler.Stop()
+	for _, module := range n.Modules {
+		module.Quit(handler)
+	}
 	return nil
 }
 
@@ -150,8 +153,17 @@ func (n *Network) stopAllThreads() error {
 	return nil
 }
 
-func (n *Network) RemoveVM(mac string) error {
-	return errors.New("Not Implemented")
+func (n *Network) RemoveVM(id string) error {
+	handler, err := n.Clients.GetClientByID(id)
+	if err != nil {
+		return err
+	}
+	handler.Stop()
+	for _, module := range n.Modules {
+		module.Quit(handler)
+	}
+	*n.Clients, err = n.Clients.RemoveClient(handler)
+	return err
 }
 
 func (n *Network) getNewMac() (string, error) {

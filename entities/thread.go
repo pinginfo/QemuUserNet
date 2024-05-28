@@ -45,6 +45,24 @@ func (c Clients) GetVMs() ([]VM, error) {
 	return vm, nil
 }
 
+func (c Clients) RemoveClient(client *Thread) (Clients, error) {
+	index := -1
+	for i, c := range c.Threads {
+		if client.VM.ID == c.VM.ID {
+			index = i
+			break
+		}
+	}
+
+	if index == -1 {
+		return c, errors.New("VM not found")
+	}
+
+	return Clients{
+		Threads: append(c.Threads[:index], c.Threads[index+1:]...),
+	}, nil
+}
+
 func (c Clients) UpdateIPIFEmpty(mac string, ip string) error {
 	if !tools.IsUsableIP(ip) {
 		return errors.New("Ip is invalid")

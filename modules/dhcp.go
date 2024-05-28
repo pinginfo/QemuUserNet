@@ -235,3 +235,14 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 
 	return buf.Bytes(), Himself, nil
 }
+
+func (d *Dhcp) Quit(client *entities.Thread) error {
+	var value net.IP
+	for _, ip := range d.usedIP {
+		if client.VM.Ip != nil && ip.String() == *client.VM.Ip {
+			value, d.usedIP = d.usedIP[0], d.usedIP[1:]
+			d.freeIP = append(d.freeIP, value)
+		}
+	}
+	return nil
+}

@@ -202,3 +202,7 @@ func (d *Dns) buildDNSAnswer(question layers.DNSQuestion) *layers.DNSResourceRec
 
 	return answer
 }
+
+func (d *Dns) Quit(client *entities.Thread) error {
+	return nil
+}
