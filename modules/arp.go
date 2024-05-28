@@ -17,7 +17,7 @@ func NewArp(clients *entities.Clients) (*Arp, error) {
 	return &Arp{clients: clients}, nil
 }
 
-func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
+func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
 	etherLayer := packet.Layer(layers.LayerTypeEthernet)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
 	arpLayer := packet.Layer(layers.LayerTypeARP)
@@ -28,11 +28,11 @@ func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 		arp, _ := arpLayer.(*layers.ARP)
 		ip := net.IP(arp.SourceProtAddress)
 		a.clients.UpdateIPIFEmpty(srcMAC.String(), ip.String())
-		return packet.Data(), All, errors.New("Job done")
+		return packet.Data(), All, nil, errors.New("Job done")
 	}
 
 	if etherLayer == nil || ipLayer == nil {
-		return packet.Data(), All, errors.New("Job done")
+		return packet.Data(), All, nil, errors.New("Job done")
 	}
 
 	ethl, _ := etherLayer.(*layers.Ethernet)
@@ -40,7 +40,7 @@ func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 	ipl, _ := ipLayer.(*layers.IPv4)
 	a.clients.UpdateIPIFEmpty(srcMAC.String(), ipl.SrcIP.String())
 
-	return packet.Data(), All, errors.New("Job done")
+	return packet.Data(), All, nil, errors.New("Job done")
 }
 
 func (a *Arp) Quit(client *entities.Thread) error {

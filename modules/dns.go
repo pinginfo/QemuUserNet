@@ -29,14 +29,15 @@ func NewDns(ip string, mac string, clients *entities.Clients) (*Dns, error) {
 	return &Dns{nip, nmac, make(map[string]net.IP), clients}, nil
 }
 
-func (d *Dns) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
+func (d *Dns) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
 	t, r, err := d.respondToArpRequest(packet)
 
 	if err == nil {
-		return t, r, err
+		return t, r, nil, err
 	}
 
-	return d.respondToDnsRequest(packet)
+	t, r, err = d.respondToDnsRequest(packet)
+	return t, r, nil, err
 }
 
 func (d *Dns) AddEntry(name string, ip string) error {

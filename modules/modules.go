@@ -14,9 +14,10 @@ const (
 	Others
 	All
 	Nobody
+	Explicit
 )
 
 type Module interface {
-	Listen(gopacket.Packet) ([]byte, Receiver, error)
+	Listen(gopacket.Packet) ([]byte, Receiver, *entities.Thread, error)
 	Quit(client *entities.Thread) error
 }

@@ -64,22 +64,31 @@ func (n *Network) listen(thread *entities.Thread) error {
 
 			var receiver modules.Receiver
 			var request []byte
+			var client *entities.Thread
 			for _, module := range n.Modules {
-				request, receiver, err = module.Listen(packet)
+				request, receiver, client, err = module.Listen(packet)
 				if err != nil {
 					continue
 				}
 				break
 			}
 
-			if receiver == modules.Nobody {
+			switch receiver {
+			case modules.Nobody:
 				continue
-			}
-			if receiver == modules.Himself {
+			case modules.Explicit:
+				n.send(client.VM.LocalSocket, request)
+				continue
+			case modules.Himself:
 				n.send(thread.VM.LocalSocket, request)
-			} else {
+				continue
+			case modules.All:
 				for _, x := range n.Clients.Threads {
-					if receiver != modules.All && x.VM == thread.VM {
+					n.send(x.VM.LocalSocket, request)
+				}
+			default:
+				for _, x := range n.Clients.Threads {
+					if x.VM == thread.VM {
 						continue
 					}
 					n.send(x.VM.LocalSocket, request)

@@ -113,21 +113,21 @@ func (d *Dhcp) getAnIp() (*net.IP, error) {
 	}
 }
 
-func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
+func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
 	etherLayer := packet.Layer(layers.LayerTypeEthernet)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
 	udpLayer := packet.Layer(layers.LayerTypeUDP)
 	dhcpLayer := packet.Layer(layers.LayerTypeDHCPv4)
 
 	if etherLayer == nil || ipLayer == nil || udpLayer == nil || dhcpLayer == nil {
-		return packet.Data(), Others, errors.New("Not a dhcp packet")
+		return packet.Data(), All, nil, errors.New("Not a dhcp packet")
 	}
 	var messagetype layers.DHCPMsgType
 
 	clientIP, err := d.getAnIp()
 
 	if err != nil {
-		return packet.Data(), Others, err
+		return packet.Data(), All, nil, err
 	}
 
 	ether, _ := etherLayer.(*layers.Ethernet)
@@ -142,7 +142,7 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 			case layers.DHCPMsgTypeRequest:
 				messagetype = layers.DHCPMsgTypeAck
 			default:
-				return packet.Data(), Nobody, errors.New("DHCPOptMessageType is not supported")
+				return packet.Data(), Nobody, nil, errors.New("DHCPOptMessageType is not supported")
 			}
 		}
 	}
@@ -222,18 +222,18 @@ func (d *Dhcp) Listen(packet gopacket.Packet) ([]byte, Receiver, error) {
 	err = gopacket.SerializeLayers(buf, opts, responseEther, responseIP, responseUDP, responseDHCP)
 
 	if err != nil {
-		return packet.Data(), Nobody, errors.New("Packet serialization error")
+		return packet.Data(), Nobody, nil, errors.New("Packet serialization error")
 	}
 
 	client, err := d.clients.GetClientByMac(dhcp.ClientHWAddr.String())
 	if err != nil {
-		return packet.Data(), Nobody, errors.New("Client not found")
+		return packet.Data(), Nobody, nil, errors.New("Client not found")
 	}
 
 	ip := clientIP.String()
 	client.VM.Ip = &ip
 
-	return buf.Bytes(), Himself, nil
+	return buf.Bytes(), Himself, nil, nil
 }
 
 func (d *Dhcp) Quit(client *entities.Thread) error {
