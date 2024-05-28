@@ -50,13 +50,17 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
+	vswitch, err := modules.NewSwitch(clients)
+	if err != nil {
+		return []byte(err.Error()), nil
+	}
 
 	s.networks = append(
 		s.networks,
 		&network.Network{
 			Name:    cmd.NetworkName,
 			MTU:     1500 + 14,
-			Modules: []modules.Module{arp, dhcp, dns},
+			Modules: []modules.Module{arp, dhcp, dns, vswitch},
 			Clients: clients,
 		})
 	r := []string{cmd.NetworkName}
