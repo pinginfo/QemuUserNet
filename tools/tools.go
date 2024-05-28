@@ -3,6 +3,7 @@ package tools
 import (
 	"crypto/rand"
 	"fmt"
+	"net"
 )
 
 func GenerateMACAddress() (string, error) {
@@ -28,4 +29,45 @@ func CraftQemuNetworkCommand(socket string, socketRemote string, socketLocal str
 		socket +
 		",mac=" +
 		mac)
+}
+
+func IsUsableIP(ipStr string) bool {
+	ip := net.ParseIP(ipStr)
+	if ip == nil {
+		return false
+	}
+
+	if ip.IsLoopback() {
+		return false
+	}
+
+	if ip.IsMulticast() {
+		return false
+	}
+
+	if ip.IsLinkLocalUnicast() {
+		return false
+	}
+
+	if ip.IsLinkLocalMulticast() {
+		return false
+	}
+
+	if ip.IsUnspecified() {
+		return false
+	}
+
+	if ip.To4() != nil {
+		ip = ip.To4()
+
+		if ip.Equal(net.IPv4bcast) {
+			return false
+		}
+
+		if ip[0] == 169 && ip[1] == 254 {
+			return false
+		}
+	}
+
+	return true
 }

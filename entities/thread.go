@@ -1,6 +1,9 @@
 package entities
 
-import "errors"
+import (
+	"QemuUserNet/tools"
+	"errors"
+)
 
 type Thread struct {
 	VM     VM
@@ -40,4 +43,20 @@ func (c Clients) GetVMs() ([]VM, error) {
 		vm = append(vm, client.VM)
 	}
 	return vm, nil
+}
+
+func (c Clients) UpdateIPIFEmpty(mac string, ip string) error {
+	if !tools.IsUsableIP(ip) {
+		return errors.New("Ip is invalid")
+	}
+	for _, client := range c.Threads {
+		if client.VM.Mac == mac {
+			if client.VM.Ip == nil {
+				client.VM.Ip = &ip
+			} else {
+				return errors.New("The VM already has an Ip")
+			}
+		}
+	}
+	return errors.New("VM not found")
 }
