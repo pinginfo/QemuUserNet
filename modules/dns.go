@@ -3,7 +3,6 @@ package modules
 import (
 	"QemuUserNet/entities"
 	"errors"
-	"fmt"
 	"net"
 
 	"github.com/google/gopacket"
@@ -56,7 +55,7 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 	dnsLayer := packet.Layer(layers.LayerTypeDNS)
 
 	if dnsLayer == nil {
-		return packet.Data(), Others, errors.New("Not a dns packet")
+		return packet.Data(), All, errors.New("Not a dns packet")
 	}
 
 	dnsPacket, _ := dnsLayer.(*layers.DNS)
@@ -110,7 +109,6 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 		err := gopacket.SerializeLayers(buf, opts, responseEther, responseIP, responseUDP, responseDNS)
 
 		if err != nil {
-			fmt.Println(err.Error())
 			return packet.Data(), Nobody, errors.New("Packet serialization error")
 		}
 		return buf.Bytes(), Himself, nil
@@ -123,13 +121,13 @@ func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, err
 	arpLayer := packet.Layer(layers.LayerTypeARP)
 
 	if arpLayer == nil {
-		return nil, Others, errors.New("Not a arp request")
+		return nil, All, errors.New("Not a arp request")
 	}
 
 	arp, _ := arpLayer.(*layers.ARP)
 
 	if arp.Operation != layers.ARPRequest {
-		return packet.Data(), Others, errors.New("Not a arp request")
+		return packet.Data(), All, errors.New("Not a arp request")
 	}
 
 	if net.IP(arp.DstProtAddress).Equal(d.ip) {
@@ -164,7 +162,7 @@ func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, err
 		return buf.Bytes(), Himself, nil
 	}
 
-	return packet.Data(), Others, errors.New("ARP request not for dns")
+	return packet.Data(), All, errors.New("ARP request not for dns")
 }
 
 func (d *Dns) buildDNSAnswer(question layers.DNSQuestion) *layers.DNSResourceRecord {
