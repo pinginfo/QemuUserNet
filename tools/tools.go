@@ -1,6 +1,7 @@
 package tools
 
 import (
+	"bytes"
 	"crypto/rand"
 	"errors"
 	"fmt"
@@ -115,4 +116,14 @@ func GenerateIPRange(rangeStr string) ([]net.IP, error) {
 	}
 
 	return ips, nil
+}
+
+func IsBroadcastMAC(macStr string) (bool, error) {
+	mac, err := net.ParseMAC(macStr)
+	if err != nil {
+		return false, fmt.Errorf("invalid MAC address: %s", macStr)
+	}
+
+	broadcastMAC := net.HardwareAddr{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF}
+	return bytes.Equal(mac, broadcastMAC), nil
 }

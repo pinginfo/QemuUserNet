@@ -2,6 +2,7 @@ package modules
 
 import (
 	"QemuUserNet/entities"
+	"QemuUserNet/tools"
 	"errors"
 
 	"github.com/google/gopacket"
@@ -20,19 +21,28 @@ func (s *Switch) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thr
 	etherLayer := packet.Layer(layers.LayerTypeEthernet)
 
 	if etherLayer == nil {
-		return packet.Data(), All, nil, errors.New("Ether layer not found")
+		return packet.Data(), Nobody, nil, errors.New("Ether layer not found")
 	}
 
 	eth, ok := etherLayer.(*layers.Ethernet)
 	if !ok {
-		return packet.Data(), All, nil, errors.New("Ether layer not found")
+		return packet.Data(), Nobody, nil, errors.New("Ether layer not found")
 	}
 	mac := eth.SrcMAC.String()
+
+	isBroadcast, err := tools.IsBroadcastMAC(mac)
+	if err != nil {
+		return packet.Data(), Nobody, nil, errors.New("Ether layer not found")
+	}
+
+	if isBroadcast {
+		return packet.Data(), All, nil, err
+	}
 
 	client, err := s.clients.GetClientByMac(mac)
 
 	if err != nil {
-		return packet.Data(), All, nil, err
+		return packet.Data(), Nobody, nil, err
 	}
 
 	return packet.Data(), Explicit, client, nil
