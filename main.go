@@ -11,14 +11,15 @@ import (
 
 func main() {
 	var (
-		ip         string
-		port       int
-		subnet     string
-		gatewayIP  string
-		gatewayMAC string
-		rangeIP    string
-		dnsIP      string
-		dnsMAC     string
+		ip                   string
+		port                 int
+		subnet               string
+		gatewayIP            string
+		gatewayMAC           string
+		rangeIP              string
+		dnsIP                string
+		dnsMAC               string
+		disconnectOnPowerOff bool
 	)
 
 	daemonCmd := flag.NewFlagSet("daemon", flag.ExitOnError)
@@ -36,6 +37,7 @@ func main() {
 	createCmd.StringVar(&rangeIP, "rangeip", "10.10.10.100-200", "A range of IP addresses within the subnet that can be assigned to devices. The range is specified with a start and end IP address, indicating the pool of IP addresses available for DHCP assignment")
 	createCmd.StringVar(&dnsIP, "dns", "10.10.10.1", "The IP address of the DNS server that will be used by devices within the network segment")
 	createCmd.StringVar(&dnsMAC, "dnsmac", "52:54:00:12:34:ff", "The MAC (Media Access Control) address of the DNS server device")
+	createCmd.BoolVar(&disconnectOnPowerOff, "disconnectOnPowerOff", false, "Automatically disconnect the VM when it is powered off")
 
 	flag.StringVar(&ip, "h", "0.0.0.0", "Set hostname")
 	flag.IntVar(&port, "p", 9000, "Set port")
@@ -126,7 +128,7 @@ func main() {
 			createCmd.Usage()
 			os.Exit(0)
 		}
-		err := client.Create(ip, port, createCmd.Arg(0), subnet, gatewayIP, gatewayMAC, rangeIP, dnsIP, dnsMAC)
+		err := client.Create(ip, port, createCmd.Arg(0), subnet, gatewayIP, gatewayMAC, rangeIP, dnsIP, dnsMAC, disconnectOnPowerOff)
 		if err != nil {
 			log.Println("error: ", err.Error())
 			os.Exit(1)

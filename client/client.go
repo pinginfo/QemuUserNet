@@ -32,8 +32,8 @@ func listen(conn net.Conn) error {
 	return conn.Close()
 }
 
-func Create(ip string, port int, nameNetwork string, subnet string, gatewayIP string, gatewayMAC string, rangeIP string, dnsIP string, dnsMAC string) error {
-	cmd := entities.CreateCommand{nameNetwork, subnet, gatewayIP, gatewayMAC, rangeIP, dnsIP, dnsMAC}
+func Create(ip string, port int, nameNetwork string, subnet string, gatewayIP string, gatewayMAC string, rangeIP string, dnsIP string, dnsMAC string, disconnectOnPowerOff bool) error {
+	cmd := entities.CreateCommand{nameNetwork, subnet, gatewayIP, gatewayMAC, rangeIP, dnsIP, dnsMAC, disconnectOnPowerOff}
 	wrapper := entities.CommandWrapper{"create", cmd}
 
 	data, err := json.Marshal(wrapper)

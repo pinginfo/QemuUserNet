@@ -45,6 +45,15 @@ func (c Clients) GetVMs() ([]VM, error) {
 	return vm, nil
 }
 
+func (c Clients) GetClientByLocalSocket(localSock string) (*Thread, error) {
+	for _, client := range c.Threads {
+		if client.VM.LocalSocket == localSock {
+			return client, nil
+		}
+	}
+	return nil, errors.New("VM not found")
+}
+
 func (c Clients) RemoveClient(client *Thread) (Clients, error) {
 	index := -1
 	for i, c := range c.Threads {

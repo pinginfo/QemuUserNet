@@ -16,13 +16,14 @@ type CommandWrapper struct {
 }
 
 type CreateCommand struct {
-	NetworkName string
-	Subnet      string
-	GatewayIP   string
-	GatewayMAC  string
-	RangeIP     string
-	DnsIP       string
-	DnsMAC      string
+	NetworkName          string
+	Subnet               string
+	GatewayIP            string
+	GatewayMAC           string
+	RangeIP              string
+	DnsIP                string
+	DnsMAC               string
+	DisconnectOnPowerOff bool
 }
 
 type ConnectCommand struct {

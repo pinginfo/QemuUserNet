@@ -58,11 +58,11 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 	s.networks = append(
 		s.networks,
 		&network.Network{
-			Name:    cmd.NetworkName,
-			MTU:     1500 + 14,
-			Modules: []modules.Module{arp, dhcp, dns, vswitch},
-			Clients: clients,
-		})
+			Name:                 cmd.NetworkName,
+			MTU:                  1500 + 14,
+			Modules:              []modules.Module{arp, dhcp, dns, vswitch},
+			Clients:              clients,
+			DisconnectOnPowerOff: cmd.DisconnectOnPowerOff})
 	r := []string{cmd.NetworkName}
 	return []byte(strings.Join(r, "\n")), nil
 }

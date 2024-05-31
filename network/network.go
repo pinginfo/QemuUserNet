@@ -16,15 +16,28 @@ import (
 )
 
 type Network struct {
-	Name    string
-	MTU     int
-	Clients *entities.Clients
-	Modules []modules.Module
+	Name                 string
+	MTU                  int
+	Clients              *entities.Clients
+	Modules              []modules.Module
+	DisconnectOnPowerOff bool
 }
 
 func (n *Network) send(sockPath string, data []byte) error {
 	sock, err := net.DialUnix("unixgram", nil, &net.UnixAddr{sockPath, "unixgram"})
 	if err != nil {
+		if n.DisconnectOnPowerOff {
+			client, err := n.Clients.GetClientByLocalSocket(sockPath)
+			if err != nil {
+				log.Println("WARNING: error when deleting the VM: ", err.Error())
+			}
+			err = n.RemoveVM(client.VM.ID)
+			if err != nil {
+				log.Println("WARNING: error when deleting the VM: ", err.Error())
+			}
+			return nil
+		}
+
 		log.Println("WARNING: error during creation of socket: ", err.Error())
 		return err
 	}
