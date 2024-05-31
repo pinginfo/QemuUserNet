@@ -9,14 +9,14 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
-// Arp handles ARP requests and updates the IP addresses of clients if they are not already set.
-type Arp struct {
+// AddressResolution handles requests and updates the IP addresses of clients if they are not already set.
+type AddressResolution struct {
 	clients *entities.Clients
 }
 
-// NewArp creates a new Arp instance with the provided clients.
-func NewArp(clients *entities.Clients) (*Arp, error) {
-	return &Arp{clients: clients}, nil
+// NewAddressResolution creates a new AddressResolution instance with the provided clients.
+func NewAddressResolution(clients *entities.Clients) (*AddressResolution, error) {
+	return &AddressResolution{clients: clients}, nil
 }
 
 // Listen processes a network packet to update the client's IP address if it's an ARP packet or an IPv4 packet.
@@ -24,7 +24,7 @@ func NewArp(clients *entities.Clients) (*Arp, error) {
 // If only an IPv4 packet is found, it also updates the client's IP address.
 // It only updates the IP address if the client's IP is currently empty.
 // Returns an error indicating "Job done" to signify the packet was processed.
-func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
+func (a *AddressResolution) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
 	// Extract Ethernet, IPv4, and ARP layers from the packet
 	etherLayer := packet.Layer(layers.LayerTypeEthernet)
 	ipLayer := packet.Layer(layers.LayerTypeIPv4)
@@ -70,6 +70,6 @@ func (a *Arp) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread
 }
 
 // Quit handles any necessary cleanup for a client when it disconnects. Currently, it does nothing.
-func (a *Arp) Quit(client *entities.Thread) error {
+func (a *AddressResolution) Quit(client *entities.Thread) error {
 	return nil
 }

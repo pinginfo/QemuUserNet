@@ -46,7 +46,7 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
-	arp, err := modules.NewArp(clients)
+	ar, err := modules.NewAddressResolution(clients)
 	if err != nil {
 		return []byte(err.Error()), nil
 	}
@@ -60,7 +60,7 @@ func (s *Middleware) Create(cmd entities.CreateCommand) ([]byte, error) {
 		&network.Network{
 			Name:                 cmd.NetworkName,
 			MTU:                  1500 + 14,
-			Modules:              []modules.Module{arp, dhcp, dns, vswitch},
+			Modules:              []modules.Module{ar, dhcp, dns, vswitch},
 			Clients:              clients,
 			DisconnectOnPowerOff: cmd.DisconnectOnPowerOff})
 	r := []string{cmd.NetworkName}
