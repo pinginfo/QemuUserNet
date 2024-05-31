@@ -67,6 +67,10 @@ func (c Clients) RemoveClient(client *Thread) (Clients, error) {
 		return c, errors.New("VM not found")
 	}
 
+	if client.VM.LocalSock != nil {
+		client.VM.LocalSock.Close()
+	}
+
 	return Clients{
 		Threads: append(c.Threads[:index], c.Threads[index+1:]...),
 	}, nil

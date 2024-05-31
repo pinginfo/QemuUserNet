@@ -1,5 +1,7 @@
 package entities
 
+import "net"
+
 type VM struct {
 	ID           string
 	Mac          string
@@ -7,4 +9,5 @@ type VM struct {
 	RemoteSocket string
 	LocalSocket  string
 	Ip           *string
+	LocalSock    *net.UnixConn
 }

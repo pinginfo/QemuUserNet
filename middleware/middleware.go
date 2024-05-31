@@ -94,7 +94,7 @@ func (s *Middleware) Inspect(cmd entities.InspectCommand) ([]byte, error) {
 		for _, selectedNetwork := range cmd.NetworkNames {
 			if network.Name == selectedNetwork {
 				r = append(r, "-"+selectedNetwork+"-------------------------------------------------------------------------------------------")
-				vms, _ := network.GetVMs()
+				vms, _ := network.Clients.GetVMs()
 				for _, vm := range vms {
 					if vm.Ip == nil {
 						r = append(r, vm.ID+"	"+vm.Mac+"	"+"None	"+"	"+vm.Socket)
@@ -125,11 +125,18 @@ func (s *Middleware) Prune(cmd entities.PruneCommand) ([]byte, error) {
 func (s *Middleware) Rm(cmd entities.RmCommand) ([]byte, error) {
 	var updatedList []*network.Network
 	var r = []string{}
+
 	removed := false
 	for _, net := range s.networks {
 		if cmd.NetworkName != net.Name {
 			updatedList = append(updatedList, net)
 		} else {
+			err := net.Stop()
+			if err != nil {
+				str := fmt.Sprintf("Error: cannot remove the network : %s", err.Error())
+				r = []string{str}
+				return []byte(strings.Join(r, "\n")), nil
+			}
 			removed = true
 		}
 	}

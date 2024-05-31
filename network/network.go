@@ -1,3 +1,4 @@
+// Package network provides network management for virtual machines in QemuUserNet.
 package network
 
 import (
@@ -15,6 +16,7 @@ import (
 	"github.com/google/uuid"
 )
 
+// Network represents a virtual network.
 type Network struct {
 	Name                 string
 	MTU                  int
@@ -23,30 +25,64 @@ type Network struct {
 	DisconnectOnPowerOff bool
 }
 
-func (n *Network) send(sockPath string, data []byte) error {
-	sock, err := net.DialUnix("unixgram", nil, &net.UnixAddr{sockPath, "unixgram"})
-	if err != nil {
-		if n.DisconnectOnPowerOff {
-			client, err := n.Clients.GetClientByLocalSocket(sockPath)
-			if err != nil {
-				log.Println("WARNING: error when deleting the VM: ", err.Error())
-			}
-			err = n.RemoveVM(client.VM.ID)
-			if err != nil {
-				log.Println("WARNING: error when deleting the VM: ", err.Error())
-			}
-			return nil
-		}
+// AddVM adds a new virtual machine to the network.
+func (n *Network) AddVM(id string) (*entities.VM, error) {
+	// Check if the ID is already used
+	if _, err := n.Clients.GetClientByID(id); err == nil {
+		return nil, errors.New("This ID is already used")
+	}
 
-		log.Println("WARNING: error during creation of socket: ", err.Error())
+	// Generate unique socket identifiers
+	uuid := uuid.New().String()
+	var localSock = "/tmp/QemuUserNet_" + uuid + ".local"
+	var remoteSock = "/tmp/QemuUserNet_" + uuid + ".remote"
+
+	// Generate a new MAC address
+	mac, err := n.getNewMac()
+	if err != nil {
+		log.Println("WARNING: error during mac generation: ", err.Error())
+	}
+
+	// Create a new VM and its associated thread
+	vm := entities.VM{ID: id, Mac: mac, Socket: uuid, LocalSocket: localSock, RemoteSocket: remoteSock, Ip: nil, LocalSock: nil}
+	thread := &entities.Thread{VM: vm, Active: false, Done: make(chan struct{})}
+	n.Clients.Threads = append(n.Clients.Threads, thread)
+
+	// Start the listener in a new goroutine
+	go func() {
+		if err := n.listen(thread); err != nil {
+			log.Printf("ERROR: failed to start listener for VM %s: %v", id, err)
+		}
+	}()
+
+	return &vm, nil
+}
+
+// RemoveVM removes a virtual machine from the network by its ID.
+func (n *Network) RemoveVM(id string) error {
+	client, err := n.Clients.GetClientByID(id)
+	if err != nil {
 		return err
 	}
-	defer sock.Close()
+	return n.stopThread(client)
+}
 
-	_, err = sock.Write(data)
+// Stop stops all running threads in the network.
+func (n *Network) Stop() error {
+	var stopErrors []error
+	for _, client := range n.Clients.Threads {
+		err := n.stopThread(client)
+		if err != nil {
+			stopErrors = append(stopErrors, err)
+		}
+	}
+	if len(stopErrors) > 0 {
+		return fmt.Errorf("WARNONG: failed to stop some threads: %v", stopErrors)
+	}
 	return nil
 }
 
+// listen starts listening for packets on the VM's remote socket.
 func (n *Network) listen(thread *entities.Thread) error {
 	log.Println("INFO: Thread started : " + thread.VM.ID)
 	if _, err := os.Stat(thread.VM.RemoteSocket); err == nil {
@@ -59,7 +95,10 @@ func (n *Network) listen(thread *entities.Thread) error {
 		return err
 	}
 
-	defer recv.Close()
+	defer func() {
+		recv.Close()
+		os.Remove(thread.VM.RemoteSocket)
+	}()
 
 	for {
 		select {
@@ -88,121 +127,81 @@ func (n *Network) listen(thread *entities.Thread) error {
 
 			switch receiver {
 			case modules.Nobody:
-				continue
 			case modules.Explicit:
-				n.send(client.VM.LocalSocket, request)
-				continue
+				err = n.send(client, request)
+				if err != nil {
+					log.Println(err.Error())
+				}
 			case modules.Himself:
-				n.send(thread.VM.LocalSocket, request)
-				continue
+				err = n.send(thread, request)
+				if err != nil {
+					log.Println(err.Error())
+				}
 			case modules.All:
 				for _, x := range n.Clients.Threads {
-					n.send(x.VM.LocalSocket, request)
+					err = n.send(x, request)
+					if err != nil {
+						log.Println(err.Error())
+					}
 				}
 			default:
 				for _, x := range n.Clients.Threads {
-					if x.VM == thread.VM {
-						continue
+					if x.VM != thread.VM {
+						err = n.send(x, request)
+						if err != nil {
+							log.Println(err.Error())
+						}
 					}
-					n.send(x.VM.LocalSocket, request)
 				}
 			}
 		}
 	}
 }
 
-func (n *Network) GetVMs() ([]entities.VM, error) {
-	return n.Clients.GetVMs()
-}
-
-func (n *Network) AddVM(id string) (*entities.VM, error) {
-	if _, err := n.Clients.GetClientByID(id); err == nil {
-		return nil, errors.New("This ID is already used")
+// send sends data to the specified client's local socket.
+func (n *Network) send(client *entities.Thread, data []byte) error {
+	if client.VM.LocalSock == nil {
+		sock, err := net.DialUnix("unixgram", nil, &net.UnixAddr{client.VM.LocalSocket, "unixgram"})
+		if err != nil {
+			return fmt.Errorf("WARNING: error during creation of socket: %s", err.Error())
+		}
+		client.VM.LocalSock = sock
+		log.Println("INFO: Opened LocalSocket for ", client.VM.ID)
 	}
-
-	uuid := uuid.New().String()
-	var localSock = "/tmp/QemuUserNet_" + uuid + ".local"
-	var remoteSock = "/tmp/QemuUserNet_" + uuid + ".remote"
-
-	mac, err := n.getNewMac()
-
+	length, err := client.VM.LocalSock.Write(data)
 	if err != nil {
-		log.Println("WARNING: error during mac generation: ", err.Error())
+		if n.DisconnectOnPowerOff {
+			return n.stopThread(client)
+		}
+		return fmt.Errorf("WARNING: error during writing : %s", err.Error())
+	}
+	if length != len(data) {
+		return errors.New("Package not send completely")
 	}
 
-	vm := entities.VM{ID: id, Mac: mac, Socket: uuid, LocalSocket: localSock, RemoteSocket: remoteSock, Ip: nil}
-	thread := &entities.Thread{VM: vm, Active: false, Done: make(chan struct{})}
-	n.Clients.Threads = append(n.Clients.Threads, thread)
-
-	go n.listen(thread)
-
-	return &vm, nil
-}
-
-func (n *Network) Start(id string) error {
-	handler, err := n.Clients.GetClientByID(id)
-	if err != nil {
-		return err
-	}
-	go n.listen(handler)
 	return nil
 }
 
-func (n *Network) Stop(id string) error {
-	handler, err := n.Clients.GetClientByID(id)
-	if err != nil {
-		return err
-	}
-	handler.Stop()
+// stopThread stops the specified client's thread and cleans up resources.
+func (n *Network) stopThread(client *entities.Thread) error {
+	var err error
+	client.Stop()
 	for _, module := range n.Modules {
-		module.Quit(handler)
+		module.Quit(client)
 	}
-	return nil
-}
-
-func (n *Network) StartAllThreads() error {
-	fmt.Println("StartAllThreads")
-	for _, handler := range n.Clients.Threads {
-		go n.listen(handler)
-	}
-	return nil
-}
-
-func (n *Network) stopAllThreads() error {
-	for _, handler := range n.Clients.Threads {
-		handler.Stop()
-	}
-	return nil
-}
-
-func (n *Network) RemoveVM(id string) error {
-	handler, err := n.Clients.GetClientByID(id)
-	if err != nil {
-		return err
-	}
-	handler.Stop()
-	for _, module := range n.Modules {
-		module.Quit(handler)
-	}
-	*n.Clients, err = n.Clients.RemoveClient(handler)
+	*n.Clients, err = n.Clients.RemoveClient(client)
 	return err
 }
 
+// getNewMac generates a new unique MAC address for a VM.
 func (n *Network) getNewMac() (string, error) {
-	var (
-		mac string
-		err error
-	)
 	for {
-		mac, err = tools.GenerateMACAddress()
-
+		mac, err := tools.GenerateMACAddress()
 		if err != nil {
 			return "", err
 		}
-
 		if _, err = n.Clients.GetClientByMac(mac); err != nil {
-			break
+			return mac, nil
 		}
 	}
-	return mac, nil
 }
