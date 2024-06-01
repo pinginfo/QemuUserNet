@@ -9,6 +9,7 @@ import (
 	"github.com/google/gopacket/layers"
 )
 
+// Dns struct handles DNS resolution and ARP responses specifically for the DNS server's IP.
 type Dns struct {
 	ip      net.IP
 	mac     net.HardwareAddr
@@ -16,6 +17,7 @@ type Dns struct {
 	clients *entities.Clients
 }
 
+// NewDns creates a new Dns instance with the given DNS IP, MAC addresses and the provided clients.
 func NewDns(ip string, mac string, clients *entities.Clients) (*Dns, error) {
 	nip := net.ParseIP(ip)
 	if nip == nil {
@@ -28,29 +30,20 @@ func NewDns(ip string, mac string, clients *entities.Clients) (*Dns, error) {
 	return &Dns{nip, nmac, make(map[string]net.IP), clients}, nil
 }
 
+// Listen processes incoming packets and responds to ARP and DNS requests.
 func (d *Dns) Listen(packet gopacket.Packet) ([]byte, Receiver, *entities.Thread, error) {
+	// Check if the packet is an ARP request directed to the DNS server
 	t, r, err := d.respondToArpRequest(packet)
-
 	if err == nil {
 		return t, r, nil, err
 	}
 
+	// If not an ARP request, check if it is a DNS request
 	t, r, err = d.respondToDnsRequest(packet)
 	return t, r, nil, err
 }
 
-func (d *Dns) AddEntry(name string, ip string) error {
-	if _, ok := d.dict[name]; ok {
-		return errors.New("Name already used")
-	}
-	netip := net.ParseIP(ip)
-	if netip == nil {
-		return errors.New("Invalid IP")
-	}
-	d.dict[name] = netip
-	return nil
-}
-
+// respondToDnsRequest handles DNS requests and builds appropriate responses.
 func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, error) {
 	dnsLayer := packet.Layer(layers.LayerTypeDNS)
 
@@ -65,6 +58,7 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 		return packet.Data(), Nobody, errors.New("This is a dns response")
 	}
 
+	// Build DNS response
 	responseDNS := &layers.DNS{
 		ID:           dnsPacket.ID,
 		QR:           true,
@@ -75,6 +69,7 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 		ResponseCode: layers.DNSResponseCodeNoErr,
 	}
 
+	// Build DNS answers for each question
 	for _, question := range dnsPacket.Questions {
 		answer := d.buildDNSAnswer(question)
 		if answer != nil {
@@ -82,6 +77,7 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 		}
 	}
 
+	// If there are answers, construct the full DNS response packet
 	if len(responseDNS.Answers) > 0 {
 		responseEther := &layers.Ethernet{
 			SrcMAC:       packet.Layer(layers.LayerTypeEthernet).(*layers.Ethernet).DstMAC,
@@ -101,9 +97,9 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 			SrcPort: layers.UDPPort(53),
 			DstPort: packet.Layer(layers.LayerTypeUDP).(*layers.UDP).SrcPort,
 		}
-
 		responseUDP.SetNetworkLayerForChecksum(responseIP)
 
+		// Serialize layers into a single packet
 		buf := gopacket.NewSerializeBuffer()
 		opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
 		err := gopacket.SerializeLayers(buf, opts, responseEther, responseIP, responseUDP, responseDNS)
@@ -117,20 +113,21 @@ func (d *Dns) respondToDnsRequest(packet gopacket.Packet) ([]byte, Receiver, err
 	return packet.Data(), Nobody, errors.New("No answers")
 }
 
+// respondToArpRequest handles ARP requests specifically for the DNS server's IP and builds appropriate responses.
 func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, error) {
 	arpLayer := packet.Layer(layers.LayerTypeARP)
-
 	if arpLayer == nil {
 		return nil, All, errors.New("Not a arp request")
 	}
 
 	arp, _ := arpLayer.(*layers.ARP)
-
 	if arp.Operation != layers.ARPRequest {
 		return packet.Data(), All, errors.New("Not a arp request")
 	}
 
+	// Check if the ARP request is for the DNS server's IP
 	if net.IP(arp.DstProtAddress).Equal(d.ip) {
+		// Build ARP reply
 		responseARP := &layers.ARP{
 			AddrType:          layers.LinkTypeEthernet,
 			Protocol:          layers.EthernetTypeIPv4,
@@ -151,6 +148,7 @@ func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, err
 			EthernetType: layers.EthernetTypeARP,
 		}
 
+		// Serialize layers into a single packet
 		buf := gopacket.NewSerializeBuffer()
 		opts := gopacket.SerializeOptions{FixLengths: true, ComputeChecksums: true}
 		err := gopacket.SerializeLayers(buf, opts, responseEthernet, responseARP)
@@ -165,23 +163,23 @@ func (d *Dns) respondToArpRequest(packet gopacket.Packet) ([]byte, Receiver, err
 	return packet.Data(), All, errors.New("ARP request not for dns")
 }
 
+// buildDNSAnswer constructs a DNS answer for a given DNS question.
 func (d *Dns) buildDNSAnswer(question layers.DNSQuestion) *layers.DNSResourceRecord {
+	// Retrieve client information based on the question name
 	client, err := d.clients.GetClientByID(string(question.Name))
-
 	if err != nil {
 		return nil
 	}
-
 	if client.VM.Ip == nil {
 		return nil
 	}
 
 	ip := net.ParseIP(*client.VM.Ip)
-
 	if ip == nil {
 		return nil
 	}
 
+	// Create DNS answer based on question type
 	answer := &layers.DNSResourceRecord{
 		Name:  question.Name,
 		Type:  question.Type,
@@ -202,6 +200,7 @@ func (d *Dns) buildDNSAnswer(question layers.DNSQuestion) *layers.DNSResourceRec
 	return answer
 }
 
+// Quit handles any necessary cleanup for a client when it disconnects. Currently, it does nothing.
 func (d *Dns) Quit(client *entities.Thread) error {
 	return nil
 }
