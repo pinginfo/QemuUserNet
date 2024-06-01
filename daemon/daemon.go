@@ -1,3 +1,4 @@
+// Package daemon provides functions to initialize and handle network commands as a daemon server.
 package daemon
 
 import (
@@ -13,6 +14,7 @@ import (
 
 var myMiddleware middleware.Middleware
 
+// InitDaemon initializes the daemon server with the specified IP interface and port.
 func InitDaemon(ipInterface string, port int) {
 	myMiddleware = middleware.Middleware{}
 	err := myMiddleware.Init()
@@ -39,6 +41,7 @@ func InitDaemon(ipInterface string, port int) {
 	}
 }
 
+// response sends a response to the client with the provided result data and error.
 func response(conn net.Conn, result []byte, e error) {
 	if e != nil {
 		log.Println("WARNING: error during response: ", e.Error())
@@ -50,6 +53,7 @@ func response(conn net.Conn, result []byte, e error) {
 	return
 }
 
+// deserialiseCommand deserializes the command from the wrapper interface and returns the command and any error encountered.
 func deserialiseCommand[T any](wrapper interface{}, finalCmd T) (*T, error) {
 	cmd := wrapper.(map[string]interface{})
 	cmdBytes, err := json.Marshal(cmd)
@@ -63,6 +67,7 @@ func deserialiseCommand[T any](wrapper interface{}, finalCmd T) (*T, error) {
 	return &finalCmd, nil
 }
 
+// handle handles incoming connections by reading commands, executing them, and sending responses.
 func handle(conn net.Conn) {
 	var wrapper entities.CommandWrapper
 

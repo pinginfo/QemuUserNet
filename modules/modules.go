@@ -1,3 +1,8 @@
+// Package modules provides interfaces and types for creating and managing network modules
+// that process and forward network packets. This package includes definitions for
+// packet receivers and the Module interface which standardizes how network packets
+// are listened to and processed, as well as how resources are cleaned up when a client
+// disconnects.
 package modules
 
 import (

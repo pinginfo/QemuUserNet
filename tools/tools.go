@@ -1,3 +1,6 @@
+// Package tools provides utility functions for network operations,
+// including MAC address generation, IP range generation, and various
+// network-related checks.
 package tools
 
 import (
@@ -10,6 +13,7 @@ import (
 	"strings"
 )
 
+// GenerateMACAddress generates a random MAC address.
 func GenerateMACAddress() (string, error) {
 	mac := make([]byte, 6)
 
@@ -22,6 +26,7 @@ func GenerateMACAddress() (string, error) {
 	return fmt.Sprintf("%02x:%02x:%02x:%02x:%02x:%02x", mac[0], mac[1], mac[2], mac[3], mac[4], mac[5]), nil
 }
 
+// CraftQemuNetworkCommand constructs a QEMU network command string.
 func CraftQemuNetworkCommand(socket string, socketRemote string, socketLocal string, mac string) []byte {
 	return []byte("-netdev dgram,id=" +
 		socket +
@@ -35,6 +40,7 @@ func CraftQemuNetworkCommand(socket string, socketRemote string, socketLocal str
 		mac)
 }
 
+// IsUsableIP checks if an IP address is usable (not loopback, multicast, etc.).
 func IsUsableIP(ipStr string) bool {
 	ip := net.ParseIP(ipStr)
 	if ip == nil {
@@ -76,6 +82,7 @@ func IsUsableIP(ipStr string) bool {
 	return true
 }
 
+// GenerateIPRange generates a list of IP addresses from a given range string (e.g., "192.168.1.1-10").
 func GenerateIPRange(rangeStr string) ([]net.IP, error) {
 	parts := strings.Split(rangeStr, "-")
 	if len(parts) != 2 {
@@ -118,6 +125,7 @@ func GenerateIPRange(rangeStr string) ([]net.IP, error) {
 	return ips, nil
 }
 
+// IsBroadcastMAC checks if the given MAC address is a broadcast MAC address.
 func IsBroadcastMAC(macStr string) (bool, error) {
 	mac, err := net.ParseMAC(macStr)
 	if err != nil {

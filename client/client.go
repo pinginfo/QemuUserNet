@@ -1,3 +1,5 @@
+// Package client provides functions to send various network commands
+// to a server and handle the responses.
 package client
 
 import (
@@ -8,6 +10,8 @@ import (
 	"net"
 )
 
+// send establishes a TCP connection to the given IP and port,
+// and sends the provided data. It returns the connection and any error encountered.
 func send(ip string, port int, data []byte) (net.Conn, error) {
 	conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", ip, port))
 	if err != nil {
@@ -20,6 +24,8 @@ func send(ip string, port int, data []byte) (net.Conn, error) {
 	return conn, nil
 }
 
+// listen reads the response from the server on the given connection
+// and prints it if it is not "nil". Closes the connection after reading.
 func listen(conn net.Conn) error {
 	buffer := make([]byte, 2048)
 	l, err := conn.Read(buffer)
@@ -32,6 +38,7 @@ func listen(conn net.Conn) error {
 	return conn.Close()
 }
 
+// Create sends a create network command to the server with the specified parameters.
 func Create(ip string, port int, nameNetwork string, subnet string, gatewayIP string, gatewayMAC string, rangeIP string, dnsIP string, dnsMAC string, disconnectOnPowerOff bool) error {
 	cmd := entities.CreateCommand{nameNetwork, subnet, gatewayIP, gatewayMAC, rangeIP, dnsIP, dnsMAC, disconnectOnPowerOff}
 	wrapper := entities.CommandWrapper{"create", cmd}
@@ -48,6 +55,7 @@ func Create(ip string, port int, nameNetwork string, subnet string, gatewayIP st
 	return listen(conn)
 }
 
+// Connect sends a connect VM command to the server with the specified parameters.
 func Connect(ip string, port int, nameNetwork string, vmId string) error {
 	cmd := entities.ConnectCommand{nameNetwork, vmId}
 	wrapper := entities.CommandWrapper{"connect", cmd}
@@ -64,6 +72,7 @@ func Connect(ip string, port int, nameNetwork string, vmId string) error {
 	return listen(conn)
 }
 
+// Disconnect sends a disconnect VM command to the server with the specified parameters.
 func Disconnect(ip string, port int, nameNetwork string, vmId string) error {
 	cmd := entities.DisconnectCommand{nameNetwork, vmId}
 	wrapper := entities.CommandWrapper{"disconnect", cmd}
@@ -79,6 +88,7 @@ func Disconnect(ip string, port int, nameNetwork string, vmId string) error {
 	return listen(conn)
 }
 
+// Inspect sends an inspect network command to the server with the specified network names.
 func Inspect(ip string, port int, names []string) error {
 	cmd := entities.InspectCommand{names}
 	wrapper := entities.CommandWrapper{"inspect", cmd}
@@ -94,6 +104,7 @@ func Inspect(ip string, port int, names []string) error {
 	return listen(conn)
 }
 
+// Ls sends a list networks command to the server to retrieve all network names.
 func Ls(ip string, port int) error {
 	cmd := entities.LsCommand{}
 	wrapper := entities.CommandWrapper{"ls", cmd}
@@ -109,6 +120,7 @@ func Ls(ip string, port int) error {
 	return listen(conn)
 }
 
+// Prune sends a prune command to the server to remove unused resources.
 func Prune(ip string, port int) error {
 	cmd := entities.PruneCommand{}
 	wrapper := entities.CommandWrapper{"prune", cmd}
@@ -124,6 +136,7 @@ func Prune(ip string, port int) error {
 	return listen(conn)
 }
 
+// Rm sends a remove network command to the server with the specified network name.
 func Rm(ip string, port int, name string) error {
 	cmd := entities.RmCommand{name}
 	wrapper := entities.CommandWrapper{"rm", cmd}
